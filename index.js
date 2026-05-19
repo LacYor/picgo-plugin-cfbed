@@ -1,4 +1,3 @@
-const crypto = require('crypto')
 const axios = require('axios')
 const FormData = require('form-data')
 
@@ -75,13 +74,6 @@ const config = (ctx) => {
       message: '上传目录路径（可选，如 img/test）'
     },
     {
-      alias: '自定义命名格式',
-      name: 'customNameFormat',
-      type: 'input',
-      default: userConfig.customNameFormat || '',
-      message: '自定义文件名格式，如 {Y}{m}{d}_{h}{i}{s}_{str-8}（需将「文件命名」设为自定义格式）'
-    },
-    {
       alias: '服务端压缩',
       name: 'serverCompress',
       type: 'confirm',
@@ -105,55 +97,6 @@ const config = (ctx) => {
   ]
 }
 
-function formatCustomName(format, originalName) {
-  const now = new Date()
-  const pad = (n, len = 2) => String(n).padStart(len, '0')
-
-  const extMatch = originalName.match(/\.[^.]+$/)
-  const ext = extMatch ? extMatch[0] : ''
-  const baseName = originalName.replace(/\.[^.]+$/, '')
-
-  const map = {
-    '{Y}': String(now.getFullYear()),
-    '{y}': String(now.getFullYear()).slice(-2),
-    '{m}': pad(now.getMonth() + 1),
-    '{d}': pad(now.getDate()),
-    '{h}': pad(now.getHours()),
-    '{i}': pad(now.getMinutes()),
-    '{s}': pad(now.getSeconds()),
-    '{ms}': pad(now.getMilliseconds(), 3),
-    '{timestamp}': String(now.getTime()),
-    '{filename}': baseName,
-    '{uuid}': crypto.randomUUID().replace(/-/g, '')
-  }
-
-  let result = format
-  for (const [key, value] of Object.entries(map)) {
-    result = result.replaceAll(key, value)
-  }
-
-  result = result.replace(/\{md5(?:-(\d+))?\}/g, (_, len) => {
-    const hash = crypto.createHash('md5').update(baseName).digest('hex')
-    return len ? hash.slice(0, parseInt(len)) : hash
-  })
-
-  result = result.replace(/\{sha256(?:-(\d+))?\}/g, (_, len) => {
-    const hash = crypto.createHash('sha256').update(baseName).digest('hex')
-    return len ? hash.slice(0, parseInt(len)) : hash
-  })
-
-  result = result.replace(/\{str-(\d+)\}/g, (_, len) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-    let str = ''
-    for (let i = 0; i < parseInt(len); i++) {
-      str += chars[Math.floor(Math.random() * chars.length)]
-    }
-    return str
-  })
-
-  return result + ext
-}
-
 async function uploadSingle(ctx, item, cfg, baseUrl) {
   const form = new FormData()
 
@@ -166,18 +109,13 @@ async function uploadSingle(ctx, item, cfg, baseUrl) {
     throw new Error('No file data found in output item')
   }
 
-  let fileName = item.fileName || 'image' + (item.extname || '.png')
-
-  if (cfg.uploadNameType === 'custom' && cfg.customNameFormat) {
-    fileName = formatCustomName(cfg.customNameFormat, fileName)
-  }
-
+  const fileName = item.fileName || 'image' + (item.extname || '.png')
   form.append('file', fileBuffer, { filename: fileName })
 
   const params = {}
   if (cfg.uploadChannel) params.uploadChannel = cfg.uploadChannel
   if (cfg.channelName) params.channelName = cfg.channelName
-  if (cfg.uploadNameType && cfg.uploadNameType !== 'default' && cfg.uploadNameType !== 'custom') params.uploadNameType = cfg.uploadNameType
+  if (cfg.uploadNameType && cfg.uploadNameType !== 'default') params.uploadNameType = cfg.uploadNameType
   if (cfg.returnFormat) params.returnFormat = cfg.returnFormat
   if (cfg.uploadFolder) params.uploadFolder = cfg.uploadFolder
   if (cfg.serverCompress !== undefined && !cfg.serverCompress) params.serverCompress = 'false'
