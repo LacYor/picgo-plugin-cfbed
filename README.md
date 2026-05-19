@@ -30,7 +30,7 @@ cd ~/.picgo
 npm install picgo-plugin-cfbed
 
 # PicList
-cd ~/.config/piclist
+cd ~/AppData/Roaming/piclist
 npm install picgo-plugin-cfbed
 ```
 
