@@ -11,6 +11,13 @@
     "piclist"
   ],
   "homepage": "https://github.com/LacYor/picgo-plugin-cfbed#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LacYor/picgo-plugin-cfbed.git"
+  },
+  "bugs": {
+    "url": "https://github.com/LacYor/picgo-plugin-cfbed/issues"
+  },
   "author": "LacYor",
   "license": "MIT",
   "dependencies": {

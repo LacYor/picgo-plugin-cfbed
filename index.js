@@ -1,8 +1,6 @@
 const axios = require('axios')
 const FormData = require('form-data')
 
-// ========== Config Schema ==========
-
 const config = (ctx) => {
   const userConfig = ctx.getConfig('picBed.cloudflare-imgbed') || {}
   return [
@@ -98,8 +96,6 @@ const config = (ctx) => {
   ]
 }
 
-// ========== Upload ==========
-
 async function uploadSingle(ctx, item, cfg, baseUrl) {
   const form = new FormData()
 
@@ -115,7 +111,6 @@ async function uploadSingle(ctx, item, cfg, baseUrl) {
   const fileName = item.fileName || 'image' + (item.extname || '.png')
   form.append('file', fileBuffer, { filename: fileName })
 
-  // Build query parameters
   const params = {}
   if (cfg.uploadChannel) params.uploadChannel = cfg.uploadChannel
   if (cfg.channelName) params.channelName = cfg.channelName
@@ -126,7 +121,6 @@ async function uploadSingle(ctx, item, cfg, baseUrl) {
   if (cfg.autoRetry !== undefined && !cfg.autoRetry) params.autoRetry = 'false'
   if (cfg.authCode && !cfg.apiToken) params.authCode = cfg.authCode
 
-  // Build headers
   const headers = { ...form.getHeaders() }
   if (cfg.apiToken) {
     headers['Authorization'] = 'Bearer ' + cfg.apiToken
@@ -184,28 +178,22 @@ const handle = async (ctx) => {
   return ctx
 }
 
-// ========== Delete Sync ==========
-
 function extractDeletePath(imgUrl, baseUrl) {
   let path = imgUrl
 
-  // Parse as URL to get pathname
   try {
     const u = new URL(imgUrl)
     path = u.pathname
   } catch {
-    // Not a valid URL, try stripping baseUrl
     if (baseUrl && path.startsWith(baseUrl)) {
       path = path.substring(baseUrl.length)
     }
   }
 
-  // Remove leading slash
   if (path.startsWith('/')) {
     path = path.substring(1)
   }
 
-  // Remove 'file/' prefix (cloudflare-imgbed serves files under /file/)
   if (path.startsWith('file/')) {
     path = path.substring(5)
   }
@@ -218,7 +206,6 @@ async function removeHandler(ctx, files, guiApi) {
 
   if (!cfg || cfg.enableDelete === false) return
 
-  // Delete API requires a token with 'delete' permission
   if (!cfg.apiToken) return
 
   const baseUrl = cfg.baseUrl ? cfg.baseUrl.replace(/\/+$/, '') : ''
@@ -227,7 +214,6 @@ async function removeHandler(ctx, files, guiApi) {
   let failCount = 0
 
   for (const file of files) {
-    // Only handle files uploaded by this uploader
     if (file.type && file.type !== 'cloudflare-imgbed') continue
 
     const imgUrl = file.imgUrl || file.url
@@ -237,7 +223,6 @@ async function removeHandler(ctx, files, guiApi) {
       const filePath = extractDeletePath(imgUrl, baseUrl)
       if (!filePath) continue
 
-      // Encode each path segment, preserving slashes as separators
       const encodedPath = filePath.split('/').map(encodeURIComponent).join('/')
       const deleteUrl = baseUrl + '/api/manage/delete/' + encodedPath
 
@@ -263,8 +248,6 @@ async function removeHandler(ctx, files, guiApi) {
   }
 }
 
-// ========== Plugin Entry ==========
-
 module.exports = (ctx) => {
   const register = () => {
     ctx.helper.uploader.register('cloudflare-imgbed', {
@@ -273,7 +256,6 @@ module.exports = (ctx) => {
       name: 'Cloudflare ImgBed'
     })
 
-    // Listen for remove event to sync delete
     ctx.on('remove', (files, guiApi) => {
       removeHandler(ctx, files, guiApi).catch((err) => {
         ctx.log && ctx.log.error('Cloudflare ImgBed delete error:', err)
