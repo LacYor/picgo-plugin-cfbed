@@ -1,6 +1,6 @@
 {
   "name": "picgo-plugin-cfbed",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "The third-party PicGo/PicList plugin for MarSeventh/CloudFlare-ImgBed hosting with upload and remote delete sync support",
   "main": "index.js",
   "keywords": [
