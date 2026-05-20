@@ -13,18 +13,12 @@ const config = (ctx) => {
       required: true
     },
     {
-      alias: '上传认证码',
-      name: 'authCode',
-      type: 'password',
-      default: userConfig.authCode || '',
-      message: '上传认证码（在管理后台生成，可选）'
-    },
-    {
       alias: 'API Token',
       name: 'apiToken',
       type: 'password',
       default: userConfig.apiToken || '',
-      message: 'API Token（需包含 upload/delete/list 权限，用于上传和远程删除）'
+      message: 'API Token（需包含 upload/delete/list 权限，用于上传和远程删除）',
+      required: true
     },
     {
       alias: '上传渠道',
@@ -115,12 +109,17 @@ async function uploadSingle(ctx, item, cfg, baseUrl) {
   const params = {}
   if (cfg.uploadChannel) params.uploadChannel = cfg.uploadChannel
   if (cfg.channelName) params.channelName = cfg.channelName
-  if (cfg.uploadNameType && cfg.uploadNameType !== 'default') params.uploadNameType = cfg.uploadNameType
+  if (cfg.uploadNameType && cfg.uploadNameType !== 'default') {
+    if (cfg.uploadNameType === 'custom') {
+      params.uploadNameType = 'origin'
+    } else {
+      params.uploadNameType = cfg.uploadNameType
+    }
+  }
   if (cfg.returnFormat) params.returnFormat = cfg.returnFormat
   if (cfg.uploadFolder) params.uploadFolder = cfg.uploadFolder
   if (cfg.serverCompress !== undefined && !cfg.serverCompress) params.serverCompress = 'false'
   if (cfg.autoRetry !== undefined && !cfg.autoRetry) params.autoRetry = 'false'
-  if (cfg.authCode && !cfg.apiToken) params.authCode = cfg.authCode
 
   const headers = { ...form.getHeaders() }
   if (cfg.apiToken) {
@@ -207,36 +206,47 @@ async function removeHandler(ctx, files, guiApi) {
 
   if (!cfg || cfg.enableDelete === false) return
 
-  if (!cfg.apiToken) return
+  if (!cfg.apiToken) {
+    ctx.log && ctx.log.warn('Cloudflare ImgBed: 未配置 API Token，跳过远程删除')
+    return
+  }
 
-  const baseUrl = cfg.baseUrl ? cfg.baseUrl.replace(/\/+$/, '') : ''
+  if (!cfg.baseUrl) {
+    ctx.log && ctx.log.warn('Cloudflare ImgBed: 未配置站点URL，跳过远程删除')
+    return
+  }
+
+  const baseUrl = cfg.baseUrl.replace(/\/+$/, '')
 
   let deleteCount = 0
   let failCount = 0
 
   for (const file of files) {
-    if (file.type && file.type !== 'cloudflare-imgbed') continue
-
     const imgUrl = file.imgUrl || file.url
     if (!imgUrl) continue
 
     try {
       const filePath = extractDeletePath(imgUrl, baseUrl)
-      if (!filePath) continue
+      if (!filePath) {
+        ctx.log && ctx.log.warn('Cloudflare ImgBed: 无法提取路径: ' + imgUrl)
+        continue
+      }
 
-      const encodedPath = filePath.split('/').map(encodeURIComponent).join('/')
+      const encodedPath = filePath.split('/').map(s => encodeURIComponent(decodeURIComponent(s))).join('/')
       const deleteUrl = baseUrl + '/api/manage/delete/' + encodedPath
 
+      ctx.log && ctx.log.info('Cloudflare ImgBed: 删除 ' + encodedPath)
       await axios.get(deleteUrl, {
         headers: { Authorization: 'Bearer ' + cfg.apiToken }
       })
       deleteCount++
     } catch (err) {
       failCount++
+      ctx.log && ctx.log.error('Cloudflare ImgBed: 删除失败 ' + (file.imgUrl || file.url) + ' - ' + (err.response?.status || err.message))
     }
   }
 
-  if (failCount > 0) {
+  if (deleteCount > 0 || failCount > 0) {
     const notification = {
       title: 'Cloudflare ImgBed 远程删除',
       body: '成功删除 ' + deleteCount + ' 个，失败 ' + failCount + ' 个'
