@@ -91,6 +91,21 @@ const config = (ctx) => {
   ]
 }
 
+function resolveFolder(format) {
+  const now = new Date()
+  const pad = (n, len = 2) => String(n).padStart(len, '0')
+  return format
+    .replace(/\{Y\}/g, String(now.getFullYear()))
+    .replace(/\{y\}/g, String(now.getFullYear()).slice(-2))
+    .replace(/\{m\}/g, pad(now.getMonth() + 1))
+    .replace(/\{d\}/g, pad(now.getDate()))
+    .replace(/\{h\}/g, pad(now.getHours()))
+    .replace(/\{i\}/g, pad(now.getMinutes()))
+    .replace(/\{s\}/g, pad(now.getSeconds()))
+    .replace(/\{ms\}/g, pad(now.getMilliseconds(), 3))
+    .replace(/\{timestamp\}/g, String(now.getTime()))
+}
+
 async function uploadSingle(ctx, item, cfg, baseUrl) {
   const form = new FormData()
 
@@ -117,7 +132,7 @@ async function uploadSingle(ctx, item, cfg, baseUrl) {
     }
   }
   if (cfg.returnFormat) params.returnFormat = cfg.returnFormat
-  if (cfg.uploadFolder) params.uploadFolder = cfg.uploadFolder
+  if (cfg.uploadFolder) params.uploadFolder = resolveFolder(cfg.uploadFolder)
   if (cfg.serverCompress !== undefined && !cfg.serverCompress) params.serverCompress = 'false'
   if (cfg.autoRetry !== undefined && !cfg.autoRetry) params.autoRetry = 'false'
 
